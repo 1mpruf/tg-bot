@@ -5,7 +5,7 @@ from openai import OpenAI
 
 # Read tokens from environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN") or "8345014638:AAFDK_WxUO21bhMxcNOFCrGwdJbPY1_XDlQ"
-OPENAI_KEY = os.getenv("OPENAI_KEY") or "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"
+OPENAI_KEY = os.getenv("OPENAI_KEY") or "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"
 
 if not BOT_TOKEN or not OPENAI_KEY:
     raise RuntimeError("BOT_TOKEN and OPENAI_KEY must be set")
@@ -63,4 +63,5 @@ def handle_message(message):
 if __name__ == "__main__":
     print("🤖 Бот запущен и готов к дружескому общению!")
     bot.polling()
+
 
