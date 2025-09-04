@@ -4,8 +4,8 @@ import telebot
 from openai import OpenAI
 
 # Read tokens from environment variables
-BOT_TOKEN = os.getenv("8345014638:AAFDK_WxUO21bhMxcNOFCrGwdJbPY1_XDlQ")
-OPENAI_KEY = os.getenv("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")
+BOT_TOKEN = os.getenv("BOT_TOKEN") or "8345014638:AAFDK_WxUO21bhMxcNOFCrGwdJbPY1_XDlQ"
+OPENAI_KEY = os.getenv("OPENAI_KEY") or "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"
 
 if not BOT_TOKEN or not OPENAI_KEY:
     raise RuntimeError("BOT_TOKEN and OPENAI_KEY must be set")
@@ -63,3 +63,4 @@ def handle_message(message):
 if __name__ == "__main__":
     print("🤖 Бот запущен и готов к дружескому общению!")
     bot.polling()
+
