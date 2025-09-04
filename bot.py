@@ -15,8 +15,11 @@ model = genai.GenerativeModel(
     system_instruction=(
         "Ты живой человек, а не робот. Общайся дружелюбно, просто, с юмором, иногда добавляй эмодзи 😊🔥😉. "
         "Не используй сухой официозный стиль, будь естественным собеседником."
-    )
+    ),
 )
+
+# Память диалогов: user_id -> ChatSession
+conversations = {}
 
 # Определение пола по имени
 def detect_gender(name: str) -> str:
@@ -34,9 +37,13 @@ def get_bot_name(user_gender: str) -> str:
     else:
         return "Иван"    # если пишет девушка, бот = парень
 
-def ask_gemini(user_name: str, bot_name: str, user_text: str) -> str:
+def ask_gemini(user_id: int, user_name: str, bot_name: str, user_text: str) -> str:
+    chat = conversations.get(user_id)
+    if chat is None:
+        chat = model.start_chat()
+        conversations[user_id] = chat
     try:
-        response = model.generate_content(
+        response = chat.send_message(
             f"Собеседник {user_name} написал: {user_text}. Ты — {bot_name}. Ответь дружелюбно."
         )
         return response.text
@@ -47,6 +54,7 @@ def ask_gemini(user_name: str, bot_name: str, user_text: str) -> str:
 @bot.message_handler(func=lambda m: True)
 def handle_message(message):
     user_name = message.from_user.first_name
+    user_id = message.from_user.id
     gender = detect_gender(user_name)
     bot_name = get_bot_name(gender)
 
@@ -54,7 +62,7 @@ def handle_message(message):
     bot.send_chat_action(message.chat.id, "typing")
     time.sleep(2)  # задержка 2 секунды
 
-    reply = ask_gemini(user_name, bot_name, message.text)
+    reply = ask_gemini(user_id, user_name, bot_name, message.text)
     bot.reply_to(message, reply)
 
 print("✅ Бот с живым стилем и эффектом печати запущен!")
