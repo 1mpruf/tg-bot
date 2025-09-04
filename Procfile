@@ -1,2 +1,1 @@
-pytelegrambotapi
-openai
+worker: python3 bot.py
