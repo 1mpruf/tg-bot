@@ -1,27 +1,21 @@
-import telebot
-import google.generativeai as genai
+import os
 import time
+import telebot
+from openai import OpenAI
 
-# 🔑 Твои ключи
-BOT_TOKEN = "8345014638:AAFDK_WxUO21bhMxcNOFCrGwdJbPY1_XDlQ"
-GEMINI_KEY = "AIzaSyAV6RgBdvlamJKCKyjiOjvR4rPeGz5NY2U"
+# Read tokens from environment variables
+BOT_TOKEN = os.getenv("8345014638:AAFDK_WxUO21bhMxcNOFCrGwdJbPY1_XDlQ")
+OPENAI_KEY = os.getenv("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")
+
+if not BOT_TOKEN or not OPENAI_KEY:
+    raise RuntimeError("BOT_TOKEN and OPENAI_KEY must be set")
 
 bot = telebot.TeleBot(BOT_TOKEN)
-genai.configure(api_key=GEMINI_KEY)
+client = OpenAI(api_key=OPENAI_KEY)
 
-# Модель Gemini с "живым" стилем
-model = genai.GenerativeModel(
-    "gemini-1.5-flash",
-    system_instruction=(
-        "Ты живой человек, а не робот. Общайся дружелюбно, просто, с юмором, иногда добавляй эмодзи 😊🔥😉. "
-        "Не используй сухой официозный стиль, будь естественным собеседником."
-    ),
-)
-
-# Память диалогов: user_id -> ChatSession
+# Per-user conversation history: chat_id -> list of messages
 conversations = {}
 
-# Определение пола по имени
 def detect_gender(name: str) -> str:
     if not name:
         return "male"
@@ -30,40 +24,42 @@ def detect_gender(name: str) -> str:
         return "female"
     return "male"
 
-# Имя бота в зависимости от пола юзера
 def get_bot_name(user_gender: str) -> str:
-    if user_gender == "male":
-        return "Алина"   # если пишет парень, бот = девушка
-    else:
-        return "Иван"    # если пишет девушка, бот = парень
+    return "Алина" if user_gender == "male" else "Иван"
 
-def ask_gemini(user_id: int, user_name: str, bot_name: str, user_text: str) -> str:
-    chat = conversations.get(user_id)
-    if chat is None:
-        chat = model.start_chat()
-        conversations[user_id] = chat
-    try:
-        response = chat.send_message(
-            f"Собеседник {user_name} написал: {user_text}. Ты — {bot_name}. Ответь дружелюбно."
+def ask_openai(user_id: int, user_name: str, bot_name: str, user_text: str) -> str:
+    history = conversations.setdefault(user_id, [])
+    if not history:
+        system_prompt = (
+            f"Ты {bot_name}, весёлый и дружелюбный собеседник. "
+            "Общайся непринуждённо, с юмором и эмодзи, как реальный человек. "
+            "Всегда обращайся к собеседнику по имени."
         )
-        return response.text
-    except Exception as e:
-        return f"⚠️ Ошибка: {e}"
+        history.append({"role": "system", "content": system_prompt})
+    history.append({"role": "user", "content": f"{user_name}: {user_text}"})
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=history,
+    )
+    reply = completion.choices[0].message.content
+    history.append({"role": "assistant", "content": reply})
+    if len(history) > 20:
+        del history[1:3]
+    return reply
 
-# Обработка всех сообщений
-@bot.message_handler(func=lambda m: True)
+@bot.message_handler(func=lambda _: True)
 def handle_message(message):
-    user_name = message.from_user.first_name
-    user_id = message.from_user.id
+    user_name = message.from_user.first_name or "друг"
+    user_id = message.chat.id
     gender = detect_gender(user_name)
     bot_name = get_bot_name(gender)
 
-    # Эффект "печатает..."
-    bot.send_chat_action(message.chat.id, "typing")
-    time.sleep(2)  # задержка 2 секунды
+    bot.send_chat_action(user_id, "typing")
+    time.sleep(1.5)
 
-    reply = ask_gemini(user_id, user_name, bot_name, message.text)
+    reply = ask_openai(user_id, user_name, bot_name, message.text)
     bot.reply_to(message, reply)
 
-print("✅ Бот с живым стилем и эффектом печати запущен!")
-bot.polling()
+if __name__ == "__main__":
+    print("🤖 Бот запущен и готов к дружескому общению!")
+    bot.polling()
